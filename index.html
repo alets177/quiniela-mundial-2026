@@ -39,7 +39,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.wrap { max-width: 720px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
 
 /* ─── HERO ─── */
 .hero {
@@ -301,50 +301,66 @@ body {
 
 /* ─── TABLA POSICIONES ─── */
 .standings-section { margin-bottom: 2rem; }
-.standings-group { margin-bottom: 1rem; }
+.standings-group { margin-bottom: 1.25rem; break-inside: avoid; }
 .standings-group-title {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.14em;
+  font-size: 13px; font-weight: 800; letter-spacing: 0.14em;
   text-transform: uppercase; color: #fff;
-  background: #1A3A6C; padding: 6px 12px;
+  background: #1A3A6C; padding: 8px 14px;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 .standings-table {
   width: 100%; border-collapse: collapse;
   background: var(--panel);
-  border: 1px solid var(--line2);
-  border-top: none;
+  border: 1px solid var(--line2); border-top: none;
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   overflow: hidden;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  font-size: 12px;
+  font-size: 11px;
+  table-layout: fixed;
 }
 .standings-table th {
-  padding: 6px 10px; text-align: center;
-  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 5px 4px; text-align: center;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--text3);
   background: var(--bg3); border-bottom: 1px solid var(--line2);
+  white-space: nowrap;
 }
-.standings-table th:first-child { text-align: left; }
+.standings-table th.col-team { text-align: left; padding-left: 10px; }
+.standings-table th.col-pts  { color: var(--text2); }
 .standings-table td {
-  padding: 7px 10px; text-align: center;
+  padding: 0 4px; text-align: center;
   border-bottom: 1px solid var(--line); color: var(--text2);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums; height: 42px;
+  vertical-align: middle;
 }
-.standings-table td:first-child { text-align: left; color: var(--text); font-weight: 500; }
+.standings-table td.col-team {
+  text-align: left; padding-left: 0;
+  color: var(--text); font-weight: 500;
+}
 .standings-table tr:last-child td { border-bottom: none; }
 .standings-table tr:hover td { background: var(--panel2); }
 .st-pos {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: 13px; font-weight: 700; color: var(--text3);
-  margin-right: 6px;
+  font-size: 12px; font-weight: 700; color: var(--text3);
+  width: 18px; text-align: center; flex-shrink: 0;
 }
-.st-pts { font-weight: 700; color: var(--text) !important; }
+.st-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-chip {
+  font-size: 9px; font-weight: 700;
+  padding: 1px 6px; border-radius: 99px;
+  white-space: nowrap; display: inline-block; margin-top: 2px;
+}
+.st-pts { font-weight: 800 !important; color: var(--text) !important; font-size: 13px !important; }
 .standings-table tr.advancing td { background: rgba(22,163,74,0.04); }
-.standings-table tr.advancing td:first-child { border-left-color: var(--live) !important; }
+.standings-table tr.advancing td.col-team { border-left: 3px solid var(--live) !important; }
 .standings-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (max-width: 580px) {
+  .standings-grid { grid-template-columns: 1fr; }
 }
 
 /* ─── CALENDARIO ─── */
@@ -929,8 +945,6 @@ function buildGrupos() {
   }
 
   function renderGroupTable(letter, teamsData) {
-    // teamsData: array of { name, pj, g, e, p, gf, gc, pts }
-    // Sort: pts desc, dg desc, gf desc
     const sorted = [...teamsData].sort((a,b) => {
       if (b.pts !== a.pts) return b.pts - a.pts;
       const dgA = a.gf - a.gc, dgB = b.gf - b.gc;
@@ -938,34 +952,47 @@ function buildGrupos() {
       return b.gf - a.gf;
     });
 
+    // col widths: team=auto, PJ=24, G=22, E=22, P=22, GF=24, GC=24, DG=28, Pts=28
     let html = `<div class="standings-group">
       <div class="standings-group-title">Grupo ${letter}</div>
       <table class="standings-table">
+        <colgroup>
+          <col style="width:auto">
+          <col style="width:24px"><col style="width:22px"><col style="width:22px"><col style="width:22px">
+          <col style="width:26px"><col style="width:26px"><col style="width:30px"><col style="width:30px">
+        </colgroup>
         <thead><tr>
-          <th style="min-width:120px">#&nbsp;&nbsp;Equipo</th>
+          <th class="col-team">Equipo</th>
           <th title="Partidos Jugados">PJ</th>
           <th title="Ganados">G</th>
           <th title="Empatados">E</th>
           <th title="Perdidos">P</th>
           <th title="Goles a favor">GF</th>
           <th title="Goles en contra">GC</th>
-          <th title="Diferencia">DG</th>
-          <th title="Puntos">Pts</th>
+          <th title="Diferencia de goles">DG</th>
+          <th class="col-pts" title="Puntos">Pts</th>
         </tr></thead><tbody>`;
 
     sorted.forEach((row, i) => {
       const owner = getOwner(row.name);
       const borderColor = owner ? P[owner].color : 'transparent';
-      const chip = owner ? ownerChip(owner) : '';
+      const c = owner ? P[owner].color : '#8DA0B8';
+      const chipHTML = owner
+        ? `<span class="st-chip" style="background:${hexAlpha(c,0.12)};color:${c}">${owner}</span>`
+        : '';
       const dg = row.gf - row.gc;
       const dgStr = dg > 0 ? `+${dg}` : `${dg}`;
+      const dgColor = dg > 0 ? 'var(--live)' : dg < 0 ? '#DC2626' : 'var(--text3)';
       const advancing = i < 2 && row.pj > 0;
+
       html += `<tr${advancing ? ' class="advancing"' : ''}>
-        <td style="border-left:3px solid ${borderColor}">
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+        <td class="col-team" style="border-left:3px solid ${advancing ? 'var(--live)' : borderColor};padding-left:8px">
+          <div style="display:flex;align-items:center;gap:6px">
             <span class="st-pos">${i+1}</span>
-            <span>${row.name}</span>
-            ${chip}
+            <div style="min-width:0">
+              <div class="st-name">${row.name}</div>
+              ${chipHTML}
+            </div>
           </div>
         </td>
         <td>${row.pj}</td>
@@ -974,7 +1001,7 @@ function buildGrupos() {
         <td>${row.p}</td>
         <td>${row.gf}</td>
         <td>${row.gc}</td>
-        <td style="color:${dg>0?'var(--live)':dg<0?'#DC2626':'var(--text3)'};font-weight:600">${dgStr}</td>
+        <td style="color:${dgColor};font-weight:700">${dgStr}</td>
         <td class="st-pts">${row.pts}</td>
       </tr>`;
     });
