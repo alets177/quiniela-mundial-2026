@@ -551,6 +551,24 @@ body {
 const API_KEY  = '55274e0f8b9b40b096f3513cac43496b';
 const BASE_URL = 'https://api.football-data.org/v4';
 const HEADERS  = { 'X-Auth-Token': API_KEY };
+const PROXY    = 'https://corsproxy.io/?url=';
+
+async function apiFetch(path) {
+  const url = `${BASE_URL}${path}`;
+  // Intento directo primero
+  try {
+    const r = await fetch(url, { headers: HEADERS, mode: 'cors' });
+    if (r.ok) return r.json();
+  } catch(_) {}
+  // Fallback: proxy CORS
+  const proxied = `${PROXY}${encodeURIComponent(url)}`;
+  const r2 = await fetch(proxied, { headers: HEADERS });
+  if (!r2.ok) {
+    const txt = await r2.text();
+    throw new Error(`API ${r2.status}: ${txt.slice(0,120)}`);
+  }
+  return r2.json();
+}
 
 /* ══════════════════════════════════════════
    QUINIELA DATA
@@ -695,18 +713,10 @@ async function loadAll() {
   btn.classList.add('spinning');
 
   try {
-    const [mRes, sRes] = await Promise.all([
-      fetch(`${BASE_URL}/competitions/WC/matches?season=2026`, { headers: HEADERS }),
-      fetch(`${BASE_URL}/competitions/WC/standings?season=2026`, { headers: HEADERS })
+    const [mData, sData] = await Promise.all([
+      apiFetch('/competitions/WC/matches?season=2026'),
+      apiFetch('/competitions/WC/standings?season=2026')
     ]);
-
-    if (!mRes.ok || !sRes.ok) {
-      const errText = !mRes.ok ? await mRes.text() : await sRes.text();
-      throw new Error(`API error ${mRes.status || sRes.status}: ${errText.slice(0,120)}`);
-    }
-
-    const mData = await mRes.json();
-    const sData = await sRes.json();
 
     apiMatches   = mData.matches || [];
     apiStandings = sData.standings || [];
@@ -722,14 +732,12 @@ async function loadAll() {
 
   } catch(e) {
     apiError = e.message;
-    setStatus('error', 'Error al conectar con la API');
+    setStatus('error', `Error: ${e.message}`);
     console.error(e);
   }
 
   btn.disabled = false;
   btn.classList.remove('spinning');
-
-  // Re-render active tab
   renderAll();
 }
 
