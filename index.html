@@ -880,98 +880,140 @@ function buildEquipos() {
 function buildGrupos() {
   const el = document.getElementById('grupos');
 
-  // Si ya tenemos standings de la API, úsalos
-  if (apiStandings && apiStandings.length > 0) {
-    let html = '<div class="sec-eye">Posiciones en vivo · fase de grupos</div><div class="standings-grid">';
-    apiStandings.forEach(group => {
-      const letter = group.group?.replace('GROUP_','') || '?';
-      html += `<div class="standings-group">
-        <div class="standings-group-title">Grupo ${letter}</div>
-        <table class="standings-table">
-          <thead>
-            <tr>
-              <th style="min-width:130px">#&nbsp;&nbsp;Equipo</th>
-              <th title="Partidos Jugados">PJ</th>
-              <th title="Ganados">G</th>
-              <th title="Empatados">E</th>
-              <th title="Perdidos">P</th>
-              <th title="Goles a favor">GF</th>
-              <th title="Goles en contra">GC</th>
-              <th title="Diferencia de goles">DG</th>
-              <th title="Puntos">Pts</th>
-            </tr>
-          </thead>
-          <tbody>`;
-      group.table.forEach((row, i) => {
-        const tName = normName(row.team?.name || '');
-        const owner = getOwner(tName);
-        const borderColor = owner ? P[owner].color : 'transparent';
-        const chip = owner ? ownerChip(owner) : '';
-        const dg = (row.goalsFor - row.goalsAgainst);
-        const dgStr = dg > 0 ? `+${dg}` : `${dg}`;
-        // Top 2 avanzan — marca con fondo sutil
-        const advancing = i < 2 && row.playedGames > 0;
-        html += `<tr${advancing ? ' class="advancing"' : ''}>
-          <td style="border-left:3px solid ${borderColor}">
-            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-              <span class="st-pos">${row.position}</span>
-              <span>${tName}</span>
-              ${chip}
-            </div>
-          </td>
-          <td>${row.playedGames}</td>
-          <td>${row.won}</td>
-          <td>${row.draw}</td>
-          <td>${row.lost}</td>
-          <td>${row.goalsFor}</td>
-          <td>${row.goalsAgainst}</td>
-          <td style="color:${dg>0?'var(--live)':dg<0?'#DC2626':'var(--text3)'};font-weight:600">${dgStr}</td>
-          <td class="st-pts">${row.points}</td>
-        </tr>`;
+  // ── Helper: construir mapa de grupos desde apiMatches ──
+  // La API de standings a veces devuelve todo en un solo array o mal agrupado.
+  // Reconstruimos la tabla desde los partidos para mayor fiabilidad.
+  function buildStandingsFromMatches() {
+    if (!apiMatches || apiMatches.length === 0) return null;
+    const groupMatches = apiMatches.filter(m => m.stage === 'GROUP_STAGE');
+    if (groupMatches.length === 0) return null;
+
+    // stats[groupLetter][teamName] = { pj, g, e, p, gf, gc, pts }
+    const stats = {};
+
+    groupMatches.forEach(m => {
+      const gl = groupLetter(m); // 'A'..'L'
+      if (!stats[gl]) stats[gl] = {};
+
+      const hName = normName(m.homeTeam?.name || '');
+      const aName = normName(m.awayTeam?.name || '');
+
+      [hName, aName].forEach(t => {
+        if (t && !stats[gl][t]) stats[gl][t] = { pj:0, g:0, e:0, p:0, gf:0, gc:0, pts:0 };
       });
-      html += '</tbody></table></div>';
+
+      const sc = m.score?.fullTime;
+      if (!sc || sc.home == null || m.status === 'SCHEDULED' || m.status === 'TIMED') return;
+
+      const hS = sc.home, aS = sc.away;
+      if (!stats[gl][hName] || !stats[gl][aName]) return;
+
+      stats[gl][hName].pj++;
+      stats[gl][aName].pj++;
+      stats[gl][hName].gf += hS; stats[gl][hName].gc += aS;
+      stats[gl][aName].gf += aS; stats[gl][aName].gc += hS;
+
+      if (hS > aS) {
+        stats[gl][hName].g++; stats[gl][hName].pts += 3;
+        stats[gl][aName].p++;
+      } else if (hS < aS) {
+        stats[gl][aName].g++; stats[gl][aName].pts += 3;
+        stats[gl][hName].p++;
+      } else {
+        stats[gl][hName].e++; stats[gl][hName].pts++;
+        stats[gl][aName].e++; stats[gl][aName].pts++;
+      }
+    });
+
+    return stats;
+  }
+
+  function renderGroupTable(letter, teamsData) {
+    // teamsData: array of { name, pj, g, e, p, gf, gc, pts }
+    // Sort: pts desc, dg desc, gf desc
+    const sorted = [...teamsData].sort((a,b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      const dgA = a.gf - a.gc, dgB = b.gf - b.gc;
+      if (dgB !== dgA) return dgB - dgA;
+      return b.gf - a.gf;
+    });
+
+    let html = `<div class="standings-group">
+      <div class="standings-group-title">Grupo ${letter}</div>
+      <table class="standings-table">
+        <thead><tr>
+          <th style="min-width:120px">#&nbsp;&nbsp;Equipo</th>
+          <th title="Partidos Jugados">PJ</th>
+          <th title="Ganados">G</th>
+          <th title="Empatados">E</th>
+          <th title="Perdidos">P</th>
+          <th title="Goles a favor">GF</th>
+          <th title="Goles en contra">GC</th>
+          <th title="Diferencia">DG</th>
+          <th title="Puntos">Pts</th>
+        </tr></thead><tbody>`;
+
+    sorted.forEach((row, i) => {
+      const owner = getOwner(row.name);
+      const borderColor = owner ? P[owner].color : 'transparent';
+      const chip = owner ? ownerChip(owner) : '';
+      const dg = row.gf - row.gc;
+      const dgStr = dg > 0 ? `+${dg}` : `${dg}`;
+      const advancing = i < 2 && row.pj > 0;
+      html += `<tr${advancing ? ' class="advancing"' : ''}>
+        <td style="border-left:3px solid ${borderColor}">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span class="st-pos">${i+1}</span>
+            <span>${row.name}</span>
+            ${chip}
+          </div>
+        </td>
+        <td>${row.pj}</td>
+        <td>${row.g}</td>
+        <td>${row.e}</td>
+        <td>${row.p}</td>
+        <td>${row.gf}</td>
+        <td>${row.gc}</td>
+        <td style="color:${dg>0?'var(--live)':dg<0?'#DC2626':'var(--text3)'};font-weight:600">${dgStr}</td>
+        <td class="st-pts">${row.pts}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  // ── Intentar con datos de la API ──
+  const statsMap = buildStandingsFromMatches();
+
+  if (statsMap) {
+    let html = '<div class="sec-eye">Posiciones en vivo · fase de grupos</div><div class="standings-grid">';
+    // Iterar en orden A..L usando GF como fuente de verdad de equipos
+    Object.entries(GF).forEach(([letter, teams]) => {
+      const groupStats = statsMap[letter] || {};
+      // Asegurar que todos los equipos del grupo aparecen aunque no hayan jugado
+      const teamsData = teams.map(t => ({
+        name: t,
+        ...(groupStats[t] || { pj:0, g:0, e:0, p:0, gf:0, gc:0, pts:0 })
+      }));
+      html += renderGroupTable(letter, teamsData);
     });
     html += '</div>';
     el.innerHTML = html;
     return;
   }
 
-  // Sin datos de API aún — mostrar versión estática con chips
+  // ── Sin partidos aún: mostrar grupos vacíos ──
   if (apiError) {
-    let html = `<div class="error-box">⚠️ Sin conexión a la API, mostrando grupos sin estadísticas.</div>`;
-    html += '<div class="sec-eye">12 grupos oficiales</div><div class="standings-grid">';
-    for (const [letter, teams] of Object.entries(GF)) {
-      html += `<div class="standings-group">
-        <div class="standings-group-title">Grupo ${letter}</div>
-        <table class="standings-table">
-          <thead><tr>
-            <th style="min-width:130px">#&nbsp;&nbsp;Equipo</th>
-            <th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th>
-          </tr></thead><tbody>`;
-      teams.forEach((t, i) => {
-        const owner = getOwner(t);
-        const borderColor = owner ? P[owner].color : 'transparent';
-        const chip = owner ? ownerChip(owner) : '';
-        html += `<tr>
-          <td style="border-left:3px solid ${borderColor}">
-            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-              <span class="st-pos">${i+1}</span><span>${t}</span>${chip}
-            </div>
-          </td>
-          <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
-        </tr>`;
-      });
-      html += '</tbody></table></div>';
-    }
-    html += '</div>';
-    el.innerHTML = html;
-    return;
+    el.innerHTML = `<div class="error-box">⚠️ Sin conexión a la API.</div>`;
   }
 
-  // Cargando...
-  el.innerHTML = `<div class="sec-eye">Posiciones · cargando…</div><div class="standings-grid">` +
-    Array(6).fill(`<div><div class="skeleton" style="height:22px;border-radius:6px 6px 0 0"></div><div class="skeleton" style="height:130px;border-radius:0 0 6px 6px"></div></div>`).join('') +
-    `</div>`;
+  let html = '<div class="sec-eye">12 grupos · sin partidos aún</div><div class="standings-grid">';
+  Object.entries(GF).forEach(([letter, teams]) => {
+    const teamsData = teams.map(t => ({ name:t, pj:0, g:0, e:0, p:0, gf:0, gc:0, pts:0 }));
+    html += renderGroupTable(letter, teamsData);
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 /* ══════════════════════════════════════════
