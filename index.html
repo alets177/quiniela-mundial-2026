@@ -340,6 +340,8 @@ body {
   margin-right: 6px;
 }
 .st-pts { font-weight: 700; color: var(--text) !important; }
+.standings-table tr.advancing td { background: rgba(22,163,74,0.04); }
+.standings-table tr.advancing td:first-child { border-left-color: var(--live) !important; }
 .standings-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 12px;
@@ -873,86 +875,307 @@ function buildEquipos() {
 }
 
 /* ══════════════════════════════════════════
-   TAB: GRUPOS
+   TAB: GRUPOS — tabla oficial FIFA con datos en vivo
 ══════════════════════════════════════════ */
 function buildGrupos() {
   const el = document.getElementById('grupos');
-  let html = '<div class="sec-eye">12 grupos oficiales</div><div class="groups-grid">';
-  for (const [letter, teams] of Object.entries(GF)) {
-    html += `<div class="g-card"><div class="g-header">Grupo ${letter}</div>`;
-    for (const t of teams) {
-      const owner = getOwner(t);
-      const c = owner ? P[owner].color : '#CBD5E1';
-      const chip = owner ? ownerChip(owner) : '';
-      const borderStyle = owner ? `border-left:3px solid ${c}` : 'border-left:3px solid #e5e7eb';
-      html += `<div class="g-team-row" style="${borderStyle}"><span>${t}</span>${chip}</div>`;
+
+  // Si ya tenemos standings de la API, úsalos
+  if (apiStandings && apiStandings.length > 0) {
+    let html = '<div class="sec-eye">Posiciones en vivo · fase de grupos</div><div class="standings-grid">';
+    apiStandings.forEach(group => {
+      const letter = group.group?.replace('GROUP_','') || '?';
+      html += `<div class="standings-group">
+        <div class="standings-group-title">Grupo ${letter}</div>
+        <table class="standings-table">
+          <thead>
+            <tr>
+              <th style="min-width:130px">#&nbsp;&nbsp;Equipo</th>
+              <th title="Partidos Jugados">PJ</th>
+              <th title="Ganados">G</th>
+              <th title="Empatados">E</th>
+              <th title="Perdidos">P</th>
+              <th title="Goles a favor">GF</th>
+              <th title="Goles en contra">GC</th>
+              <th title="Diferencia de goles">DG</th>
+              <th title="Puntos">Pts</th>
+            </tr>
+          </thead>
+          <tbody>`;
+      group.table.forEach((row, i) => {
+        const tName = normName(row.team?.name || '');
+        const owner = getOwner(tName);
+        const borderColor = owner ? P[owner].color : 'transparent';
+        const chip = owner ? ownerChip(owner) : '';
+        const dg = (row.goalsFor - row.goalsAgainst);
+        const dgStr = dg > 0 ? `+${dg}` : `${dg}`;
+        // Top 2 avanzan — marca con fondo sutil
+        const advancing = i < 2 && row.playedGames > 0;
+        html += `<tr${advancing ? ' class="advancing"' : ''}>
+          <td style="border-left:3px solid ${borderColor}">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <span class="st-pos">${row.position}</span>
+              <span>${tName}</span>
+              ${chip}
+            </div>
+          </td>
+          <td>${row.playedGames}</td>
+          <td>${row.won}</td>
+          <td>${row.draw}</td>
+          <td>${row.lost}</td>
+          <td>${row.goalsFor}</td>
+          <td>${row.goalsAgainst}</td>
+          <td style="color:${dg>0?'var(--live)':dg<0?'#DC2626':'var(--text3)'};font-weight:600">${dgStr}</td>
+          <td class="st-pts">${row.points}</td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+    return;
+  }
+
+  // Sin datos de API aún — mostrar versión estática con chips
+  if (apiError) {
+    let html = `<div class="error-box">⚠️ Sin conexión a la API, mostrando grupos sin estadísticas.</div>`;
+    html += '<div class="sec-eye">12 grupos oficiales</div><div class="standings-grid">';
+    for (const [letter, teams] of Object.entries(GF)) {
+      html += `<div class="standings-group">
+        <div class="standings-group-title">Grupo ${letter}</div>
+        <table class="standings-table">
+          <thead><tr>
+            <th style="min-width:130px">#&nbsp;&nbsp;Equipo</th>
+            <th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DG</th><th>Pts</th>
+          </tr></thead><tbody>`;
+      teams.forEach((t, i) => {
+        const owner = getOwner(t);
+        const borderColor = owner ? P[owner].color : 'transparent';
+        const chip = owner ? ownerChip(owner) : '';
+        html += `<tr>
+          <td style="border-left:3px solid ${borderColor}">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <span class="st-pos">${i+1}</span><span>${t}</span>${chip}
+            </div>
+          </td>
+          <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+        </tr>`;
+      });
+      html += '</tbody></table></div>';
     }
     html += '</div>';
+    el.innerHTML = html;
+    return;
   }
-  html += '</div>';
-  el.innerHTML = html;
+
+  // Cargando...
+  el.innerHTML = `<div class="sec-eye">Posiciones · cargando…</div><div class="standings-grid">` +
+    Array(6).fill(`<div><div class="skeleton" style="height:22px;border-radius:6px 6px 0 0"></div><div class="skeleton" style="height:130px;border-radius:0 0 6px 6px"></div></div>`).join('') +
+    `</div>`;
 }
 
 /* ══════════════════════════════════════════
-   TAB: TABLA DE POSICIONES (LIVE)
+   TAB: TABLA — Marcador Apuesta 02 por jornada
 ══════════════════════════════════════════ */
 function buildTabla() {
   const el = document.getElementById('tabla');
 
-  if (apiError) {
-    el.innerHTML = `<div class="error-box">⚠️ No se pudo cargar la tabla: ${apiError}</div>` + fallbackTabla();
-    return;
-  }
+  // ── Calcular puntos por participante por jornada ──
+  // Jornada = número de partido del equipo en el grupo (1°, 2° o 3° partido)
+  // Usamos apiMatches filtrando GROUP_STAGE y ordenando por fecha para saber
+  // cuál es el 1°, 2° y 3° partido de cada equipo
 
-  if (!apiStandings || apiStandings.length === 0) {
-    // Show skeleton
-    el.innerHTML = `<div class="sec-eye">Tabla de posiciones</div>` + skeletonStandings();
-    return;
-  }
+  function calcJornadas() {
+    const source = (apiMatches && apiMatches.length > 0)
+      ? apiMatches.filter(m => m.stage === 'GROUP_STAGE')
+      : [];
 
-  let html = '<div class="sec-eye">Tabla de posiciones en vivo</div><div class="standings-grid">';
+    // Para cada equipo, rastrear en qué jornada va
+    const teamMatchCount = {}; // teamName → [matchday count]
 
-  apiStandings.forEach(group => {
-    const letter = group.group?.replace('GROUP_','') || '?';
-    html += `<div class="standings-group">
-      <div class="standings-group-title">Grupo ${letter}</div>
-      <table class="standings-table">
-        <thead>
-          <tr>
-            <th style="width:40%">Equipo</th>
-            <th>PJ</th><th>G</th><th>E</th><th>P</th>
-            <th>GF</th><th>GC</th><th>Pts</th>
-          </tr>
-        </thead>
-        <tbody>`;
+    // Ordenar por fecha para asignar correctamente jornada 1, 2, 3
+    const sorted = [...source].sort((a,b) => new Date(a.utcDate) - new Date(b.utcDate));
 
-    group.table.forEach(row => {
-      const tName = normName(row.team?.name || '');
-      const owner = getOwner(tName);
-      const borderColor = owner ? P[owner].color : 'transparent';
-      const chip = owner ? ownerChip(owner) : '';
-      html += `<tr>
-        <td style="border-left:3px solid ${borderColor}">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span class="st-pos">${row.position}</span>
-            <span>${tName}</span>
-            ${chip}
-          </div>
-        </td>
-        <td>${row.playedGames}</td>
-        <td>${row.won}</td>
-        <td>${row.draw}</td>
-        <td>${row.lost}</td>
-        <td>${row.goalsFor}</td>
-        <td>${row.goalsAgainst}</td>
-        <td class="st-pts">${row.points}</td>
-      </tr>`;
+    // matchKey → jornada (1,2,3)
+    const matchJornada = {};
+
+    sorted.forEach(m => {
+      const h = normName(m.homeTeam?.name || '');
+      const a = normName(m.awayTeam?.name || '');
+      if (!teamMatchCount[h]) teamMatchCount[h] = 0;
+      if (!teamMatchCount[a]) teamMatchCount[a] = 0;
+      teamMatchCount[h]++;
+      teamMatchCount[a]++;
+      // La jornada del partido es el número de partido que llevan ambos equipos
+      // (deben ser iguales dentro del grupo)
+      const j = teamMatchCount[h];
+      matchJornada[m.id] = j;
     });
 
-    html += '</tbody></table></div>';
+    // Ahora acumular puntos por participante por jornada
+    // pts[participante][jornada] = puntos
+    const pts = {};
+    const played = {}; // cuántos partidos jugados por participante por jornada
+    for (const name of Object.keys(P)) {
+      pts[name] = { 1: 0, 2: 0, 3: 0 };
+      played[name] = { 1: 0, 2: 0, 3: 0 };
+    }
+
+    sorted.forEach(m => {
+      const sc = m.score?.fullTime;
+      if (!sc || sc.home == null) return; // partido no jugado aún
+      const hName = normName(m.homeTeam?.name || '');
+      const aName = normName(m.awayTeam?.name || '');
+      const j = matchJornada[m.id];
+      if (!j || j > 3) return;
+
+      const ph = getOwner(hName);
+      const pa = getOwner(aName);
+
+      // Resultado
+      let hPts = 0, aPts = 0;
+      if (sc.home > sc.away)       { hPts = 3; aPts = 0; }
+      else if (sc.home < sc.away)  { hPts = 0; aPts = 3; }
+      else                          { hPts = 1; aPts = 1; }
+
+      if (ph) { pts[ph][j] += hPts; played[ph][j]++; }
+      if (pa) { pts[pa][j] += aPts; played[pa][j]++; }
+    });
+
+    return { pts, played, totalMatches: sorted.length };
+  }
+
+  const { pts, played } = calcJornadas();
+
+  // ── Determinar perdedor por jornada (menos puntos, solo si jornada terminó) ──
+  function getLoser(j) {
+    // Jornada terminada = todos los participantes tienen al menos 8 partidos jugados... 
+    // pero como los equipos son 8 y cada uno juega 1 por jornada, esperamos 8 partidos por participante por jornada
+    // Si nadie jugó en esa jornada, no hay perdedor aún
+    const totals = Object.entries(pts).map(([name, pj]) => ({ name, pts: pj[j], played: played[name][j] }));
+    const anyPlayed = totals.some(t => t.played > 0);
+    if (!anyPlayed) return null;
+    const minPts = Math.min(...totals.map(t => t.pts));
+    const losers = totals.filter(t => t.pts === minPts);
+    return { losers: losers.map(l => l.name), pts: minPts, finished: totals.every(t => t.played === 8) };
+  }
+
+  // ── Render ──
+  let html = `
+    <div class="sec-eye">Apuesta 02 · puntos por jornada</div>
+    <div class="cal-notice" style="margin-bottom:1.25rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      Victoria = 3 pts · Empate = 1 pt · Derrota = 0 pts · El de menos puntos por jornada paga $50
+    </div>`;
+
+  [1, 2, 3].forEach(j => {
+    const loserInfo = getLoser(j);
+    const jPlayed = Object.values(played).some(p => p[j] > 0);
+
+    // Ordenar participantes por puntos en esta jornada (desc)
+    const ranking = Object.entries(pts)
+      .map(([name, pj]) => ({ name, pts: pj[j], played: played[name][j] }))
+      .sort((a, b) => b.pts - a.pts);
+
+    const maxPts = ranking[0]?.pts || 0;
+    const minPts = ranking[ranking.length-1]?.pts || 0;
+
+    html += `
+      <div style="margin-bottom:1.5rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;letter-spacing:0.06em;color:var(--text);text-transform:uppercase">
+            Jornada ${j}
+          </div>
+          ${!jPlayed
+            ? `<span style="font-size:11px;color:var(--text3);background:var(--bg3);padding:3px 10px;border-radius:99px;border:1px solid var(--line2)">Sin partidos aún</span>`
+            : loserInfo?.finished
+              ? `<span style="font-size:11px;font-weight:700;color:#DC2626;background:rgba(220,38,38,0.08);padding:3px 10px;border-radius:99px;border:1px solid rgba(220,38,38,0.2)">💸 Paga $50: ${loserInfo.losers.join(' y ')}</span>`
+              : `<span style="font-size:11px;color:var(--gold);background:var(--gold-dim);padding:3px 10px;border-radius:99px;border:1px solid rgba(212,146,10,0.2)">⏳ En curso</span>`
+          }
+        </div>
+        <div style="background:var(--panel);border:1px solid var(--line2);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+          ${ranking.map((r, i) => {
+            const c = P[r.name].color;
+            const isLeader = r.pts === maxPts && jPlayed;
+            const isLoser  = loserInfo && r.pts === minPts && jPlayed;
+            const barW = maxPts > 0 ? Math.round((r.pts / (maxPts * 8)) * 100) : 0;
+            // max posible = 8 equipos × 3 pts = 24
+            const barPct = maxPts > 0 ? Math.round((r.pts / 24) * 100) : 0;
+            return `
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line);position:relative;overflow:hidden">
+              ${jPlayed ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${barPct}%;background:${hexAlpha(c,0.07)};transition:width .6s"></div>` : ''}
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--text3);width:18px;text-align:center;position:relative;z-index:1">${i+1}</div>
+              <div style="flex:1;position:relative;z-index:1">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="width:28px;height:28px;border-radius:8px;background:${c};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:rgba(255,255,255,0.9);flex-shrink:0">${r.name[0]}</div>
+                  <span style="font-size:13px;font-weight:600;color:var(--text)">${r.name}</span>
+                  ${isLeader && !isLoser ? `<span style="font-size:9px;font-weight:700;color:var(--live);background:var(--live-dim);padding:1px 7px;border-radius:99px">↑ LÍDER</span>` : ''}
+                  ${isLoser && jPlayed ? `<span style="font-size:9px;font-weight:700;color:#DC2626;background:rgba(220,38,38,0.08);padding:1px 7px;border-radius:99px">💸 PAGA</span>` : ''}
+                </div>
+                <div style="font-size:10px;color:var(--text3);margin-top:2px">${r.played} partido${r.played!==1?'s':''} jugado${r.played!==1?'s':''}</div>
+              </div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:${jPlayed?c:'var(--text3)'};position:relative;z-index:1;min-width:32px;text-align:right">
+                ${jPlayed ? r.pts : '—'}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
   });
 
-  html += '</div>';
+  // ── Totales acumulados ──
+  const totals = Object.entries(pts)
+    .map(([name, pj]) => ({ name, total: pj[1]+pj[2]+pj[3], played: played[name][1]+played[name][2]+played[name][3] }))
+    .sort((a,b) => b.total - a.total);
+
+  const anyTotal = totals.some(t => t.played > 0);
+
+  html += `
+    <div style="margin-bottom:1.5rem">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;letter-spacing:0.06em;color:var(--text);text-transform:uppercase;margin-bottom:10px">
+        Acumulado total
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--line2);border-radius:var(--radius);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+        ${totals.map((r, i) => {
+          const c = P[r.name].color;
+          const maxT = totals[0].total;
+          const barPct = maxT > 0 ? Math.round((r.total / 72) * 100) : 0; // 72 = 8 equipos × 3 jornadas × 3 pts
+          return `
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line);position:relative;overflow:hidden">
+            ${anyTotal ? `<div style="position:absolute;left:0;top:0;bottom:0;width:${barPct}%;background:${hexAlpha(c,0.07)};transition:width .6s"></div>` : ''}
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--text3);width:18px;text-align:center;position:relative;z-index:1">${i+1}</div>
+            <div style="flex:1;position:relative;z-index:1">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:28px;height:28px;border-radius:8px;background:${c};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:rgba(255,255,255,0.9);flex-shrink:0">${r.name[0]}</div>
+                <span style="font-size:13px;font-weight:600;color:var(--text)">${r.name}</span>
+              </div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px">${r.played} partidos jugados</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;position:relative;z-index:1">
+              <div style="text-align:center">
+                <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3)">J1</div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text2)">${pts[r.name][1]}</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3)">J2</div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text2)">${pts[r.name][2]}</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3)">J3</div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text2)">${pts[r.name][3]}</div>
+              </div>
+              <div style="text-align:center;margin-left:4px;padding-left:10px;border-left:1px solid var(--line2)">
+                <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3)">Total</div>
+                <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:${anyTotal?c:'var(--text3)'}">${anyTotal?r.total:'—'}</div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
   el.innerHTML = html;
 }
 
