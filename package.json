@@ -1,0 +1,10 @@
+{
+  "name": "quiniela-mundial-2026",
+  "version": "1.0.0",
+  "description": "Tablero de quiniela del Mundial 2026 con datos en vivo.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
