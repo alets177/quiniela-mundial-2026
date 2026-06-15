@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {
   extractCrests, knockoutByStage, nextMatch, duelOutcome,
   participantStats, computeRecords, headToHead, findDuels,
-  teamHistory, teamRecord,
+  teamHistory, teamRecord, teamsRecord, participantMatches,
 } from '../js/scoring.js';
 
 function gm(id, group, md, home, away, hs, as, status = 'FINISHED') {
@@ -101,4 +101,28 @@ test('teamRecord toma el récord del equipo de la tabla', () => {
   assert.equal(rec.pj, 1);
   assert.equal(rec.g, 1);
   assert.equal(rec.pts, 3);
+});
+
+test('teamsRecord reconcilia con los puntos del participante (pts = 3·G + E)', () => {
+  const rec = teamsRecord(MATCHES, 'Alejandro');
+  const st = participantStats(MATCHES, 'Alejandro', new Date('2026-06-11T00:00:00Z'));
+  assert.equal(rec.pts, st.total);           // los puntos SALEN del récord de equipos
+  assert.equal(rec.g * 3 + rec.e, rec.pts);  // consistencia interna
+});
+
+test('participantMatches incluye duelos e internos sin duplicar', () => {
+  // dos equipos de Alejandro (México, Chequia) enfrentados → 1 partido interno
+  const fix = [
+    gm(10, 'GROUP_A', 1, 'Mexico', 'Czech Republic', 2, 1),
+    gm(11, 'GROUP_A', 1, 'South Africa', 'Korea Republic', 0, 0), // de Gerardo/Anahi, no de Alejandro
+  ];
+  const pm = participantMatches(fix, 'Alejandro');
+  assert.equal(pm.length, 1);
+  assert.equal(pm[0].type, 'interno');
+  assert.deepEqual([pm[0].teamA, pm[0].teamB], ['México', 'Chequia']);
+
+  // en el fixture principal, los partidos de Alejandro son duelos con resultado
+  const duelos = participantMatches(MATCHES, 'Alejandro').filter((x) => x.type === 'duelo');
+  assert.ok(duelos.length > 0);
+  assert.ok(duelos.some((d) => d.result === 'G'));
 });

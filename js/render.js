@@ -11,7 +11,7 @@ import {
   buildStandings, computeJornadas, jornadaRanking, jornadaLoser,
   totalsByParticipant, findDuels, getMatchScore, groupStageMatches,
   groupLetter, isLive, isFinished, knockoutByStage, participantStats,
-  computeRecords, headToHead, nextMatch, duelOutcome, teamHistory,
+  computeRecords, headToHead, nextMatch, duelOutcome, teamHistory, participantMatches,
 } from './scoring.js';
 import { $, escapeHtml, fmtTime, fmtDayLong } from './ui.js';
 
@@ -402,21 +402,21 @@ export function renderMiPanel(state) {
   }
   const teams = [...d.teams].sort((a, b) => (RANK[a] || 99) - (RANK[b] || 99));
 
-  const resTag = (res) => {
-    const map = { G: 'w', E: 'd', P: 'l' };
-    return `<span class="res-dot ${map[res] || ''}">${res}</span>`;
-  };
-  const teamHistoryHTML = (t) => {
+  const teamSummaryHTML = (t) => {
     const hist = teamHistory(matches, t);
-    if (!hist.length) return '<div class="mt-hist empty">Sin partidos programados</div>';
-    return `<div class="mt-hist">${hist.map((x) => {
-      const intra = getOwner(x.opp) === me; // rival también es tuyo → partido interno
-      const opp = `vs ${escapeHtml(x.opp)}${intra ? '<span class="intra-tag" title="Tus dos equipos se enfrentan">interno</span>' : ''}`;
-      if (!x.played) {
-        return `<div class="mt-game pend"><span>${opp}</span><span class="mt-when">${escapeHtml(fmtDayLong(x.utcDate))}</span></div>`;
-      }
-      return `<div class="mt-game"><span>${opp}</span><span><strong>${x.gf}-${x.ga}</strong> ${resTag(x.res)}</span></div>`;
-    }).join('')}</div>`;
+    const played = hist.filter((x) => x.played);
+    const upcoming = hist.find((x) => !x.played);
+    const form = played.length
+      ? `<div class="mt-form">${played.map((x) => {
+          const cls = { G: 'w', E: 'd', P: 'l' }[x.res] || '';
+          const intra = getOwner(x.opp) === me ? ' (interno)' : '';
+          return `<span class="res-dot ${cls}" title="vs ${escapeHtml(x.opp)} ${x.gf}-${x.ga}${intra}">${x.res}</span>`;
+        }).join('')}</div>`
+      : '<div class="mt-form empty">Sin partidos jugados</div>';
+    const next = upcoming
+      ? `<div class="mt-next">Próx: vs ${escapeHtml(upcoming.opp)} · ${escapeHtml(fmtDayLong(upcoming.utcDate))}</div>`
+      : '';
+    return form + next;
   };
 
   // Próximo partido del participante
@@ -432,11 +432,7 @@ export function renderMiPanel(state) {
       </div>`;
   }
 
-  const duelPill = (o, name) => {
-    if (o === null) return '<span class="duel-pill p">Pendiente</span>';
-    if (o === 'draw') return '<span class="duel-pill d">Empate</span>';
-    return o === name ? '<span class="duel-pill w">Ganado</span>' : '<span class="duel-pill l">Perdido</span>';
-  };
+  const myMatches = participantMatches(matches, me);
 
   el.innerHTML = `
     <div class="mine-hero" style="background:linear-gradient(135deg, ${d.color}, ${hexAlpha(d.color, 0.7)})">
@@ -446,13 +442,13 @@ export function renderMiPanel(state) {
         <div class="m-meta">Lugar ${stats.rank} de ${Object.keys(P).length} · ${stats.played} partidos jugados</div>
       </div>
       <div class="mine-stats">
-        <div><div class="v">${stats.total}</div><div class="l">Puntos</div></div>
-        <div title="Duelos directos ganados · empatados · perdidos"><div class="v">${stats.duels.won}G · ${stats.duels.draw}E · ${stats.duels.lost}P</div><div class="l">Duelos G · E · P</div></div>
-        <div><div class="v">${stats.duels.pending}</div><div class="l">Duelos pendientes</div></div>
+        <div title="Puntos por jornada (Apuesta 02): victoria 3, empate 1, derrota 0"><div class="v">${stats.total}</div><div class="l">Puntos</div></div>
+        <div title="Récord de tus 8 equipos (ganados-empatados-perdidos). De aquí salen los puntos: ${stats.record.g}×3 + ${stats.record.e} = ${stats.record.pts}"><div class="v">${stats.record.g}-${stats.record.e}-${stats.record.p}</div><div class="l">Récord G-E-P</div></div>
+        <div title="Solo duelos contra otros participantes (Apuesta 01). Pendientes: ${stats.duels.pending}"><div class="v">${stats.duels.won}-${stats.duels.draw}-${stats.duels.lost}</div><div class="l">Duelos directos</div></div>
       </div>
     </div>
     ${nextHTML}
-    <div class="sec-eye">Tus 8 selecciones · récord e historial</div>
+    <div class="sec-eye">Tus 8 selecciones · récord y forma</div>
     <div class="mine-teams">
       ${teams.map((t) => {
         const r = rowMap[t] || { pj: 0, g: 0, e: 0, p: 0, pts: 0, pos: '?', letter: '?' };
@@ -460,27 +456,40 @@ export function renderMiPanel(state) {
         return `<div class="mine-team-card">
           <div class="mt-head">${teamName(t, crests, 'lg')}<span class="pos">${posTxt}</span></div>
           <div class="mt-rec">${r.pj} PJ · ${r.g}G ${r.e}E ${r.p}P · <strong>${r.pts} pts</strong></div>
-          ${teamHistoryHTML(t)}
+          ${teamSummaryHTML(t)}
         </div>`;
       }).join('')}
     </div>
-    <div class="sec-eye">Tus duelos directos</div>
+    <div class="sec-eye">Tus partidos · duelos ${stats.duels.won}G ${stats.duels.draw}E ${stats.duels.lost}P (${stats.duels.pending} pend.)</div>
     <div>
-      ${stats.duels.list.length === 0
-        ? '<div class="empty-box">Aún no hay duelos en el calendario.</div>'
-        : stats.duels.list.map((du) => {
-            const rival = du.ownerHome === me ? du.ownerAway : du.ownerHome;
-            const sc = du.score;
+      ${myMatches.length === 0
+        ? '<div class="empty-box">Aún no hay partidos en el calendario.</div>'
+        : myMatches.map((g) => {
+            const sc = g.score;
+            if (g.type === 'interno') {
+              return `<div class="duel-row" style="border-left:3px solid var(--gold)">
+                <div class="duel-date">${escapeHtml(fmtDayLong(g.utcDate))}</div>
+                <div class="duel-vs">
+                  <div class="duel-team">${teamName(g.teamA, crests)}${ownerChip(me)}</div>
+                  <div style="display:flex;align-items:center;gap:6px">${sc ? `<strong>${sc.h}-${sc.a}</strong>` : '<span class="duel-slash">vs</span>'}</div>
+                  <div class="duel-team">${teamName(g.teamB, crests)}${ownerChip(me)}</div>
+                </div>
+                <span class="duel-pill" style="color:var(--gold);background:var(--gold-dim)" title="Tus dos equipos se enfrentan">Interno</span>
+              </div>`;
+            }
+            const pill = g.result === null ? '<span class="duel-pill p">Pendiente</span>'
+              : g.result === 'E' ? '<span class="duel-pill d">Empate</span>'
+              : g.result === 'G' ? '<span class="duel-pill w">Ganado</span>'
+              : '<span class="duel-pill l">Perdido</span>';
             return `<div class="duel-row" style="border-left:3px solid ${P[me].color}">
-              <div class="duel-date">${escapeHtml(fmtDayLong(du.utcDate))}</div>
+              <div class="duel-date">${escapeHtml(fmtDayLong(g.utcDate))}</div>
               <div class="duel-vs">
-                <div class="duel-team">${teamName(du.home, crests)}${ownerChip(du.ownerHome)}</div>
-                <div style="display:flex;align-items:center;gap:6px">${sc ? `<strong>${sc.h}-${sc.a}</strong>` : '<span class="duel-slash">vs</span>'}</div>
-                <div class="duel-team">${teamName(du.away, crests)}${ownerChip(du.ownerAway)}</div>
+                <div class="duel-team">${teamName(g.myTeam, crests)}${ownerChip(me)}</div>
+                <div style="display:flex;align-items:center;gap:6px">${sc ? `<strong>${g.myGoals}-${g.oppGoals}</strong>` : '<span class="duel-slash">vs</span>'}</div>
+                <div class="duel-team">${teamName(g.opp, crests)}${g.oppOwner ? ownerChip(g.oppOwner) : ''}</div>
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
-                ${duelPill(duelOutcome(du), me)}
-                <span style="font-size:10px;color:var(--text3)">vs ${escapeHtml(rival)}</span>
+                ${pill}${g.oppOwner ? `<span style="font-size:10px;color:var(--text3)">vs ${escapeHtml(g.oppOwner)}</span>` : ''}
               </div>
             </div>`;
           }).join('')}

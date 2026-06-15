@@ -303,6 +303,59 @@ export function teamRecord(matches, name) {
   return { name, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, dg: 0 };
 }
 
+/**
+ * Récord agregado de las 8 selecciones de un participante.
+ * pts === puntos por jornada del participante (3·G + E) → reconcilia con la Apuesta 02.
+ */
+export function teamsRecord(matches, name) {
+  const standings = buildStandings(matches);
+  const byName = {};
+  for (const rows of Object.values(standings)) for (const r of rows) byName[r.name] = r;
+  const acc = { pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0 };
+  for (const t of P[name].teams) {
+    const r = byName[t];
+    if (!r) continue;
+    acc.pj += r.pj; acc.g += r.g; acc.e += r.e; acc.p += r.p;
+    acc.gf += r.gf; acc.gc += r.gc; acc.pts += r.pts;
+  }
+  return acc;
+}
+
+/**
+ * TODOS los partidos (fase de grupos) que involucran a un participante,
+ * en orden cronológico, distinguiendo duelos (vs otro participante) e internos
+ * (sus dos equipos entre sí). Sin duplicar los internos.
+ */
+export function participantMatches(matches, name) {
+  const mine = new Set(P[name].teams);
+  const out = [];
+  for (const m of groupStageMatches(matches)) {
+    const h = normName(m.homeTeam?.name || '');
+    const a = normName(m.awayTeam?.name || '');
+    const hMine = mine.has(h);
+    const aMine = mine.has(a);
+    if (!hMine && !aMine) continue;
+
+    const sc = getMatchScore(m);
+    const base = { utcDate: m.utcDate, group: groupLetter(m), status: m.status, score: sc };
+
+    if (hMine && aMine) {
+      out.push({ ...base, type: 'interno', teamA: h, teamB: a });
+    } else {
+      const myTeam = hMine ? h : a;
+      const opp = hMine ? a : h;
+      let myGoals = null, oppGoals = null, result = null;
+      if (sc) {
+        myGoals = hMine ? sc.h : sc.a;
+        oppGoals = hMine ? sc.a : sc.h;
+        result = myGoals > oppGoals ? 'G' : myGoals < oppGoals ? 'P' : 'E';
+      }
+      out.push({ ...base, type: 'duelo', myTeam, opp, oppOwner: getOwner(opp), myGoals, oppGoals, result });
+    }
+  }
+  return out.sort((x, y) => new Date(x.utcDate) - new Date(y.utcDate));
+}
+
 /* ──────────────────────────────────────────────
    ESTADÍSTICAS DE UN PARTICIPANTE (modo "Yo")
 ─────────────────────────────────────────────── */
@@ -328,6 +381,7 @@ export function participantStats(matches, name, now = new Date()) {
     total: me.total,
     j: [me.j1, me.j2, me.j3],
     played: me.played,
+    record: teamsRecord(matches, name),
     duels: { won, lost, draw, pending, list: duels },
     next: nextMatch(matches, now, P[name].teams),
   };
