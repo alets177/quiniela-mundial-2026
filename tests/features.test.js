@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   extractCrests, knockoutByStage, nextMatch, duelOutcome,
   participantStats, computeRecords, headToHead, findDuels,
+  teamHistory, teamRecord,
 } from '../js/scoring.js';
 
 function gm(id, group, md, home, away, hs, as, status = 'FINISHED') {
@@ -84,4 +85,20 @@ test('headToHead cuenta duelos entre dos participantes', () => {
   const h = headToHead(MATCHES, 'Alejandro', 'Gerardo');
   assert.equal(h.aWins, 1);
   assert.equal(h.bWins, 0);
+});
+
+test('teamHistory da el historial desde la perspectiva del equipo', () => {
+  const hist = teamHistory(MATCHES, 'México');
+  // México: ganó 3-0 a Sudáfrica (jugado) y tiene un programado vs Corea
+  const jugado = hist.find((x) => x.played);
+  assert.equal(jugado.opp, 'Sudáfrica');
+  assert.deepEqual([jugado.gf, jugado.ga, jugado.res], [3, 0, 'G']);
+  assert.ok(hist.some((x) => !x.played && x.opp === 'República de Corea'));
+});
+
+test('teamRecord toma el récord del equipo de la tabla', () => {
+  const rec = teamRecord(MATCHES, 'México');
+  assert.equal(rec.pj, 1);
+  assert.equal(rec.g, 1);
+  assert.equal(rec.pts, 3);
 });

@@ -350,9 +350,24 @@ body {
 .mine-stats > div:last-child { border-right: none; }
 .mine-stats .v { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 800; line-height: 1; }
 .mine-stats .l { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.8; }
-.mine-teams { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 1.5rem; }
+.mine-teams { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
 .mine-team { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--panel); border: 1px solid var(--line2); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); font-size: 12px; }
 .mine-team .pos { margin-left: auto; font-size: 10px; color: var(--text3); font-family: 'Barlow Condensed', sans-serif; }
+
+.mine-team-card { background: var(--panel); border: 1px solid var(--line2); border-radius: var(--radius-sm); padding: 10px 12px; box-shadow: var(--shadow-sm); }
+.mt-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); }
+.mt-head .pos { margin-left: auto; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--text3); }
+.mt-rec { font-size: 11px; color: var(--text2); margin: 6px 0; font-variant-numeric: tabular-nums; }
+.mt-rec strong { color: var(--text); }
+.mt-hist { display: flex; flex-direction: column; gap: 3px; border-top: 1px solid var(--line); padding-top: 6px; }
+.mt-hist.empty { color: var(--text3); font-size: 11px; font-style: italic; border-top: none; padding-top: 0; }
+.mt-game { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text2); gap: 8px; }
+.mt-game.pend { color: var(--text3); }
+.mt-when { font-size: 10px; }
+.res-dot { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; font-size: 9px; font-weight: 800; color: #fff; }
+.res-dot.w { background: var(--live); }
+.res-dot.d { background: var(--text3); }
+.res-dot.l { background: var(--danger); }
 .duel-pill { font-size: 9px; font-weight: 800; padding: 1px 7px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.06em; }
 .duel-pill.w { color: var(--live); background: var(--live-dim); }
 .duel-pill.l { color: var(--danger); background: rgba(220,38,38,0.10); }

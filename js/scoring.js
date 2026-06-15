@@ -269,6 +269,40 @@ export function nextMatch(matches, now = new Date(), teams = null) {
     .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))[0] || null;
 }
 
+/**
+ * Historial de partidos de una selección (fase de grupos), desde su perspectiva.
+ * Devuelve [{ opp, gf, ga, res:'G'|'E'|'P'|null, status, utcDate, played }].
+ */
+export function teamHistory(matches, name) {
+  const out = [];
+  for (const m of groupStageMatches(matches)) {
+    const h = normName(m.homeTeam?.name || '');
+    const a = normName(m.awayTeam?.name || '');
+    if (h !== name && a !== name) continue;
+    const isHome = h === name;
+    const opp = isHome ? a : h;
+    const sc = getMatchScore(m);
+    let gf = null, ga = null, res = null;
+    if (sc) {
+      gf = isHome ? sc.h : sc.a;
+      ga = isHome ? sc.a : sc.h;
+      res = gf > ga ? 'G' : gf < ga ? 'P' : 'E';
+    }
+    out.push({ opp, gf, ga, res, status: m.status, utcDate: m.utcDate, played: Boolean(sc) });
+  }
+  return out.sort((x, y) => new Date(x.utcDate) - new Date(y.utcDate));
+}
+
+/** Récord de una selección (PJ, G, E, P, GF, GC, Pts) tomado de la tabla. */
+export function teamRecord(matches, name) {
+  const standings = buildStandings(matches);
+  for (const rows of Object.values(standings)) {
+    const row = rows.find((r) => r.name === name);
+    if (row) return row;
+  }
+  return { name, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, dg: 0 };
+}
+
 /* ──────────────────────────────────────────────
    ESTADÍSTICAS DE UN PARTICIPANTE (modo "Yo")
 ─────────────────────────────────────────────── */

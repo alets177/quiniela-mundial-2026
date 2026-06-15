@@ -11,7 +11,7 @@ import {
   buildStandings, computeJornadas, jornadaRanking, jornadaLoser,
   totalsByParticipant, findDuels, getMatchScore, groupStageMatches,
   groupLetter, isLive, isFinished, knockoutByStage, participantStats,
-  computeRecords, headToHead, nextMatch, duelOutcome,
+  computeRecords, headToHead, nextMatch, duelOutcome, teamHistory,
 } from './scoring.js';
 import { $, escapeHtml, fmtTime, fmtDayLong } from './ui.js';
 
@@ -393,13 +393,30 @@ export function renderMiPanel(state) {
   }
 
   const d = P[me];
-  const stats = participantStats(state.matches || [], me, new Date());
-  const standings = buildStandings(state.matches || []);
-  const posMap = {};
+  const matches = state.matches || [];
+  const stats = participantStats(matches, me, new Date());
+  const standings = buildStandings(matches);
+  const rowMap = {};
   for (const [letter, rows] of Object.entries(standings)) {
-    rows.forEach((r, i) => { posMap[r.name] = { pos: i + 1, letter, pj: r.pj }; });
+    rows.forEach((r, i) => { rowMap[r.name] = { ...r, pos: i + 1, letter }; });
   }
   const teams = [...d.teams].sort((a, b) => (RANK[a] || 99) - (RANK[b] || 99));
+
+  const resTag = (res) => {
+    const map = { G: 'w', E: 'd', P: 'l' };
+    return `<span class="res-dot ${map[res] || ''}">${res}</span>`;
+  };
+  const teamHistoryHTML = (t) => {
+    const hist = teamHistory(matches, t);
+    const played = hist.filter((x) => x.played);
+    if (!played.length && !hist.length) return '<div class="mt-hist empty">Sin partidos programados</div>';
+    return `<div class="mt-hist">${hist.map((x) => {
+      if (!x.played) {
+        return `<div class="mt-game pend"><span>vs ${escapeHtml(x.opp)}</span><span class="mt-when">${escapeHtml(fmtDayLong(x.utcDate))}</span></div>`;
+      }
+      return `<div class="mt-game"><span>vs ${escapeHtml(x.opp)}</span><span><strong>${x.gf}-${x.ga}</strong> ${resTag(x.res)}</span></div>`;
+    }).join('')}</div>`;
+  };
 
   // Próximo partido del participante
   let nextHTML = '';
@@ -434,12 +451,16 @@ export function renderMiPanel(state) {
       </div>
     </div>
     ${nextHTML}
-    <div class="sec-eye">Tus 8 selecciones</div>
+    <div class="sec-eye">Tus 8 selecciones · récord e historial</div>
     <div class="mine-teams">
       ${teams.map((t) => {
-        const p = posMap[t];
-        const posTxt = p && p.pj > 0 ? `${p.pos}.º G${p.letter}` : `G${p?.letter || '?'}`;
-        return `<div class="mine-team">${teamName(t, crests)}<span class="pos">${posTxt}</span></div>`;
+        const r = rowMap[t] || { pj: 0, g: 0, e: 0, p: 0, pts: 0, pos: '?', letter: '?' };
+        const posTxt = r.pj > 0 ? `G${r.letter} · ${r.pos}.º` : `G${r.letter}`;
+        return `<div class="mine-team-card">
+          <div class="mt-head">${teamName(t, crests, 'lg')}<span class="pos">${posTxt}</span></div>
+          <div class="mt-rec">${r.pj} PJ · ${r.g}G ${r.e}E ${r.p}P · <strong>${r.pts} pts</strong></div>
+          ${teamHistoryHTML(t)}
+        </div>`;
       }).join('')}
     </div>
     <div class="sec-eye">Tus duelos directos</div>
