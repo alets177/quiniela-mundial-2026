@@ -1,0 +1,12 @@
+# Configuración local con secretos — NUNCA se sube
+js/config.local.js
+
+# Dependencias / artefactos por si en el futuro se agrega tooling
+node_modules/
+dist/
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
