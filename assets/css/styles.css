@@ -364,6 +364,7 @@ body {
 .mt-game { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text2); gap: 8px; }
 .mt-game.pend { color: var(--text3); }
 .mt-when { font-size: 10px; }
+.intra-tag { font-size: 8px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); background: var(--gold-dim); border: 1px solid var(--gold); padding: 0 5px; border-radius: 99px; margin-left: 5px; vertical-align: middle; }
 .res-dot { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; font-size: 9px; font-weight: 800; color: #fff; }
 .res-dot.w { background: var(--live); }
 .res-dot.d { background: var(--text3); }

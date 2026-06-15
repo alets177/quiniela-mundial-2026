@@ -408,13 +408,14 @@ export function renderMiPanel(state) {
   };
   const teamHistoryHTML = (t) => {
     const hist = teamHistory(matches, t);
-    const played = hist.filter((x) => x.played);
-    if (!played.length && !hist.length) return '<div class="mt-hist empty">Sin partidos programados</div>';
+    if (!hist.length) return '<div class="mt-hist empty">Sin partidos programados</div>';
     return `<div class="mt-hist">${hist.map((x) => {
+      const intra = getOwner(x.opp) === me; // rival también es tuyo → partido interno
+      const opp = `vs ${escapeHtml(x.opp)}${intra ? '<span class="intra-tag" title="Tus dos equipos se enfrentan">interno</span>' : ''}`;
       if (!x.played) {
-        return `<div class="mt-game pend"><span>vs ${escapeHtml(x.opp)}</span><span class="mt-when">${escapeHtml(fmtDayLong(x.utcDate))}</span></div>`;
+        return `<div class="mt-game pend"><span>${opp}</span><span class="mt-when">${escapeHtml(fmtDayLong(x.utcDate))}</span></div>`;
       }
-      return `<div class="mt-game"><span>vs ${escapeHtml(x.opp)}</span><span><strong>${x.gf}-${x.ga}</strong> ${resTag(x.res)}</span></div>`;
+      return `<div class="mt-game"><span>${opp}</span><span><strong>${x.gf}-${x.ga}</strong> ${resTag(x.res)}</span></div>`;
     }).join('')}</div>`;
   };
 
