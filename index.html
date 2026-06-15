@@ -630,70 +630,199 @@ const GF = {
 
 /* ══════════════════════════════════════════
    TEAM NAME NORMALIZATION
-   Maps API names → quiniela names
+   Maps ALL possible API name variants → quiniela names
+   football-data.org usa nombres en inglés, algunos con acentos raros
 ══════════════════════════════════════════ */
 const NAME_MAP = {
-  "United States": "EE. UU.",
-  "USA": "EE. UU.",
-  "United States of America": "EE. UU.",
-  "Korea Republic": "República de Corea",
-  "South Korea": "República de Corea",
-  "Republic of Korea": "República de Corea",
-  "Iran": "RI de Irán",
-  "IR Iran": "RI de Irán",
-  "Morocco": "Marruecos",
-  "Netherlands": "Países Bajos",
-  "Belgium": "Bélgica",
-  "Germany": "Alemania",
-  "Spain": "España",
-  "France": "Francia",
-  "Brazil": "Brasil",
-  "Argentina": "Argentina",
-  "Portugal": "Portugal",
-  "England": "Inglaterra",
-  "Croatia": "Croacia",
-  "Colombia": "Colombia",
-  "Senegal": "Senegal",
-  "Uruguay": "Uruguay",
-  "Switzerland": "Suiza",
-  "Ecuador": "Ecuador",
-  "Japan": "Japón",
-  "Australia": "Australia",
-  "Algeria": "Argelia",
-  "Egypt": "Egipto",
-  "Canada": "Canadá",
-  "Norway": "Noruega",
-  "Ivory Coast": "Costa de Marfil",
-  "Côte d'Ivoire": "Costa de Marfil",
-  "Panama": "Panamá",
-  "Sweden": "Suecia",
-  "Czech Republic": "Chequia",
-  "Czechia": "Chequia",
-  "Paraguay": "Paraguay",
-  "Scotland": "Escocia",
-  "Tunisia": "Túnez",
-  "DR Congo": "RD Congo",
-  "Uzbekistan": "Uzbekistán",
-  "Qatar": "Catar",
-  "Iraq": "Irak",
-  "South Africa": "Sudáfrica",
-  "Saudi Arabia": "Arabia Saudí",
-  "Jordan": "Jordania",
-  "Bosnia and Herzegovina": "Bosnia y Herzegovina",
-  "Cape Verde": "Islas de Cabo Verde",
-  "Ghana": "Ghana",
-  "Curaçao": "Curazao",
-  "Curacao": "Curazao",
-  "Haiti": "Haití",
-  "New Zealand": "Nueva Zelanda",
-  "Mexico": "México",
-  "Austria": "Austria",
-  "Turkey": "Turquía",
-  "Türkiye": "Turquía",
+  // ── EE. UU. ──
+  "United States":              "EE. UU.",
+  "United States of America":   "EE. UU.",
+  "USA":                        "EE. UU.",
+  "US":                         "EE. UU.",
+
+  // ── República de Corea ──
+  "Korea Republic":             "República de Corea",
+  "Republic of Korea":          "República de Corea",
+  "South Korea":                "República de Corea",
+  "Korea, Republic of":         "República de Corea",
+
+  // ── RI de Irán ──
+  "Iran":                       "RI de Irán",
+  "IR Iran":                    "RI de Irán",
+  "Islamic Republic of Iran":   "RI de Irán",
+
+  // ── Marruecos ──
+  "Morocco":                    "Marruecos",
+
+  // ── Países Bajos ──
+  "Netherlands":                "Países Bajos",
+  "Holland":                    "Países Bajos",
+
+  // ── Bélgica ──
+  "Belgium":                    "Bélgica",
+
+  // ── Alemania ──
+  "Germany":                    "Alemania",
+
+  // ── España ──
+  "Spain":                      "España",
+
+  // ── Francia ──
+  "France":                     "Francia",
+
+  // ── Brasil ──
+  "Brazil":                     "Brasil",
+
+  // ── Argentina ──
+  "Argentina":                  "Argentina",
+
+  // ── Portugal ──
+  "Portugal":                   "Portugal",
+
+  // ── Inglaterra ──
+  "England":                    "Inglaterra",
+
+  // ── Croacia ──
+  "Croatia":                    "Croacia",
+
+  // ── Colombia ──
+  "Colombia":                   "Colombia",
+
+  // ── Senegal ──
+  "Senegal":                    "Senegal",
+
+  // ── Uruguay ──
+  "Uruguay":                    "Uruguay",
+
+  // ── Suiza ──
+  "Switzerland":                "Suiza",
+
+  // ── Ecuador ──
+  "Ecuador":                    "Ecuador",
+
+  // ── Japón ──
+  "Japan":                      "Japón",
+
+  // ── Australia ──
+  "Australia":                  "Australia",
+
+  // ── Argelia ──
+  "Algeria":                    "Argelia",
+
+  // ── Egipto ──
+  "Egypt":                      "Egipto",
+
+  // ── Canadá ──
+  "Canada":                     "Canadá",
+
+  // ── Noruega ──
+  "Norway":                     "Noruega",
+
+  // ── Costa de Marfil ──
+  "Ivory Coast":                "Costa de Marfil",
+  "Côte d'Ivoire":              "Costa de Marfil",
+  "Cote d'Ivoire":              "Costa de Marfil",
+  "Côte d\u2019Ivoire":         "Costa de Marfil",
+
+  // ── Panamá ──
+  "Panama":                     "Panamá",
+
+  // ── Suecia ──
+  "Sweden":                     "Suecia",
+
+  // ── Chequia ──
+  "Czech Republic":             "Chequia",
+  "Czechia":                    "Chequia",
+  "Czech Rep.":                 "Chequia",
+
+  // ── Paraguay ──
+  "Paraguay":                   "Paraguay",
+
+  // ── Escocia ──
+  "Scotland":                   "Escocia",
+
+  // ── Túnez ──
+  "Tunisia":                    "Túnez",
+
+  // ── RD Congo ──
+  "DR Congo":                   "RD Congo",
+  "Congo DR":                   "RD Congo",
+  "Democratic Republic of Congo": "RD Congo",
+  "Congo, Democratic Republic of": "RD Congo",
+
+  // ── Uzbekistán ──
+  "Uzbekistan":                 "Uzbekistán",
+
+  // ── Catar ──
+  "Qatar":                      "Catar",
+
+  // ── Irak ──
+  "Iraq":                       "Irak",
+
+  // ── Sudáfrica ──
+  "South Africa":               "Sudáfrica",
+
+  // ── Arabia Saudí ──
+  "Saudi Arabia":               "Arabia Saudí",
+
+  // ── Jordania ──
+  "Jordan":                     "Jordania",
+
+  // ── Bosnia y Herzegovina ──
+  "Bosnia and Herzegovina":     "Bosnia y Herzegovina",
+  "Bosnia & Herzegovina":       "Bosnia y Herzegovina",
+  "Bosnia-Herzegovina":         "Bosnia y Herzegovina",
+
+  // ── Islas de Cabo Verde ──
+  "Cape Verde":                 "Islas de Cabo Verde",
+  "Cabo Verde":                 "Islas de Cabo Verde",
+
+  // ── Ghana ──
+  "Ghana":                      "Ghana",
+
+  // ── Curazao ──
+  "Curaçao":                    "Curazao",
+  "Curacao":                    "Curazao",
+
+  // ── Haití ──
+  "Haiti":                      "Haití",
+
+  // ── Nueva Zelanda ──
+  "New Zealand":                "Nueva Zelanda",
+
+  // ── México ──
+  "Mexico":                     "México",
+
+  // ── Austria ──
+  "Austria":                    "Austria",
+
+  // ── Turquía ──
+  "Turkey":                     "Turquía",
+  "Türkiye":                    "Turquía",
+
+  // ── México (ya está bien pero por si acaso) ──
+  "México":                     "México",
 };
 
 function normName(n) {
-  return NAME_MAP[n] || n;
+  if (!n) return '';
+  return NAME_MAP[n] || NAME_MAP[n.trim()] || n;
+}
+
+// Debug: muestra en consola qué nombres de la API no tienen mapeo
+function debugUnmapped() {
+  if (!apiMatches) return;
+  const unmapped = new Set();
+  apiMatches.forEach(m => {
+    const h = m.homeTeam?.name, a = m.awayTeam?.name;
+    if (h && !NAME_MAP[h] && !Object.values(NAME_MAP).includes(h)) unmapped.add(h);
+    if (a && !NAME_MAP[a] && !Object.values(NAME_MAP).includes(a)) unmapped.add(a);
+  });
+  if (unmapped.size > 0) {
+    console.warn('⚠️ Nombres SIN mapeo en NAME_MAP:', [...unmapped].sort());
+  } else {
+    console.log('✅ Todos los nombres de la API están mapeados correctamente');
+  }
 }
 
 function getOwner(name) {
@@ -740,6 +869,9 @@ async function loadAll() {
     apiStandings = sData.standings || [];
     apiError     = null;
     lastUpdated  = new Date();
+
+    // Debug en consola: muestra nombres sin mapeo
+    debugUnmapped();
 
     const liveCount = apiMatches.filter(m => m.status === 'IN_PLAY' || m.status === 'PAUSED').length;
     if (liveCount > 0) {
