@@ -16,7 +16,7 @@
 
 const defaults = {
   /** URL base de un proxy (Cloudflare Worker). Opcional; si se define, tiene prioridad. */
-  proxyBase: '',
+  proxyBase: 'https://quiniela-proxy.alets-gg177.workers.dev',
 
   /** API key de football-data.org. Visible en el navegador (key gratuita, bajo riesgo). */
   apiKey: '55274e0f8b9b40b096f3513cac43496b',
